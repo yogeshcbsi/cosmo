@@ -4,6 +4,98 @@ Binaries are attached to the github release otherwise all images can be found [h
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.103.0](https://github.com/wundergraph/cosmo/compare/router@0.102.1...router@0.103.0) (2024-08-09)
+
+### Features
+
+* add fetch tree resolver ([#1019](https://github.com/wundergraph/cosmo/issues/1019)) ([4f4dee7](https://github.com/wundergraph/cosmo/commit/4f4dee765ba73cabba7ff4fe95faa4e4935505ba)) (@jensneuse)
+
+## [0.102.1](https://github.com/wundergraph/cosmo/compare/router@0.102.0...router@0.102.1) (2024-08-09)
+
+**Note:** Version bump only for package router
+
+# [0.102.0](https://github.com/wundergraph/cosmo/compare/router@0.101.2...router@0.102.0) (2024-08-06)
+
+### Features
+
+* add priority to modules ([#1002](https://github.com/wundergraph/cosmo/issues/1002)) ([4d7ac68](https://github.com/wundergraph/cosmo/commit/4d7ac68841e6f11da81b0d57da35c94923ac3833)) (@JivusAyrus)
+* config file watcher ([#1013](https://github.com/wundergraph/cosmo/issues/1013)) ([d023d49](https://github.com/wundergraph/cosmo/commit/d023d4942a67dc80ac4e96be9249e8ea53c2ccaa)) (@StarpTech)
+* new approach to pass execution config by file ([#1012](https://github.com/wundergraph/cosmo/issues/1012)) ([d357b79](https://github.com/wundergraph/cosmo/commit/d357b7997e4352ff49f72fe47a17340b126e4b63)) (@StarpTech)
+
+## [0.101.2](https://github.com/wundergraph/cosmo/compare/router@0.101.1...router@0.101.2) (2024-08-04)
+
+### Bug Fixes
+
+* normalization overrides ([#1004](https://github.com/wundergraph/cosmo/issues/1004)) ([44737ae](https://github.com/wundergraph/cosmo/commit/44737ae5828a6255a51aacc0e359276433cb74d8)) (@jensneuse)
+
+## [0.101.1](https://github.com/wundergraph/cosmo/compare/router@0.101.0...router@0.101.1) (2024-08-04)
+
+**Note:** Version bump only for package router
+
+# [0.101.0](https://github.com/wundergraph/cosmo/compare/router@0.100.1...router@0.101.0) (2024-08-02)
+
+### Bug Fixes
+
+* replace jsonparser with fastjson to delete exported variables ([#999](https://github.com/wundergraph/cosmo/issues/999)) ([0e3307e](https://github.com/wundergraph/cosmo/commit/0e3307e24c7e5185e35ab34f9f5c14903c4085d0)) (@jensneuse)
+
+### Features
+
+* allow disabling cors ([#998](https://github.com/wundergraph/cosmo/issues/998)) ([21304b1](https://github.com/wundergraph/cosmo/commit/21304b19cf44c1e20ff96792bdeaa70ff0b3263e)) (@thisisnithin)
+
+## [0.100.1](https://github.com/wundergraph/cosmo/compare/router@0.100.0...router@0.100.1) (2024-08-01)
+
+### Bug Fixes
+
+* config poller is not required when static config is passed ([#995](https://github.com/wundergraph/cosmo/issues/995)) ([e5ba812](https://github.com/wundergraph/cosmo/commit/e5ba812eaec05dca91d4b0d8b066b7f2ff0651b3)) (@StarpTech)
+* wrong otelhttp used ([#996](https://github.com/wundergraph/cosmo/issues/996)) ([6b322f6](https://github.com/wundergraph/cosmo/commit/6b322f62359da48336c7c9f4c07eac750db93907)) (@StarpTech)
+
+# [0.100.0](https://github.com/wundergraph/cosmo/compare/router@0.99.3...router@0.100.0) (2024-08-01)
+
+### Features
+
+* implement s3 provider for config and persistent operations ([#971](https://github.com/wundergraph/cosmo/issues/971)) ([e3206ff](https://github.com/wundergraph/cosmo/commit/e3206fff9c1796a64173be350445514f26db9296)) (@StarpTech)
+* set GOMEMLIMIT automatically ([#987](https://github.com/wundergraph/cosmo/issues/987)) ([11b5723](https://github.com/wundergraph/cosmo/commit/11b572317566395192263f8c7c81886a858f5e5e)) (@StarpTech)
+
+## [0.99.3](https://github.com/wundergraph/cosmo/compare/router@0.99.2...router@0.99.3) (2024-08-01)
+
+**Note:** Version bump only for package router
+
+## [0.99.2](https://github.com/wundergraph/cosmo/compare/router@0.99.1...router@0.99.2) (2024-07-31)
+
+### Bug Fixes
+
+* excessive memory usage for big responses by disabling big pre-al… ([#986](https://github.com/wundergraph/cosmo/issues/986)) ([9aa5f29](https://github.com/wundergraph/cosmo/commit/9aa5f29cbaa12797753f280e49d32b6eed7c11b5)) (@jensneuse)
+* routing url in router playground ([#985](https://github.com/wundergraph/cosmo/issues/985)) ([5029ddc](https://github.com/wundergraph/cosmo/commit/5029ddc34e5015b2d309c8f89f7511fc670c2696)) (@thisisnithin)
+
+## [0.99.1](https://github.com/wundergraph/cosmo/compare/router@0.99.0...router@0.99.1) (2024-07-30)
+
+### Bug Fixes
+
+* input coercion for nested values ([#981](https://github.com/wundergraph/cosmo/issues/981)) ([5494e5f](https://github.com/wundergraph/cosmo/commit/5494e5f3075db7795c100c927001a4baae212c68)) (@jensneuse)
+
+# [0.99.0](https://github.com/wundergraph/cosmo/compare/router@0.98.2...router@0.99.0) (2024-07-30)
+
+### Bug Fixes
+
+* client side validation for router playground ([#976](https://github.com/wundergraph/cosmo/issues/976)) ([9a276d8](https://github.com/wundergraph/cosmo/commit/9a276d8124cb8d102081c86fb39542158542200a)) (@JivusAyrus)
+
+### Features
+
+* package playground as library ([#975](https://github.com/wundergraph/cosmo/issues/975)) ([dc6ff32](https://github.com/wundergraph/cosmo/commit/dc6ff3274dc1db50283fa58d14051538df4af192)) (@thisisnithin)
+
+## [0.98.2](https://github.com/wundergraph/cosmo/compare/router@0.98.1...router@0.98.2) (2024-07-27)
+
+### Bug Fixes
+
+* race for sendError, add test for sampling ([#967](https://github.com/wundergraph/cosmo/issues/967)) ([6d67207](https://github.com/wundergraph/cosmo/commit/6d67207ef55e888126a73eec40007b0ad2d65976)) (@StarpTech)
+* remove slow brotli compression and use optimized gzip middleware ([#968](https://github.com/wundergraph/cosmo/issues/968)) ([1049be5](https://github.com/wundergraph/cosmo/commit/1049be552ccaf3ecee99b8970efd951a82c35054)) (@StarpTech)
+
+## [0.98.1](https://github.com/wundergraph/cosmo/compare/router@0.98.0...router@0.98.1) (2024-07-24)
+
+### Bug Fixes
+
+* variable list coercion with normalization cache ([#956](https://github.com/wundergraph/cosmo/issues/956)) ([104ebe8](https://github.com/wundergraph/cosmo/commit/104ebe8f49b6975d10e897d767fb8d627e54145e)) (@jensneuse)
+
 # [0.98.0](https://github.com/wundergraph/cosmo/compare/router@0.97.0...router@0.98.0) (2024-07-22)
 
 ### Bug Fixes

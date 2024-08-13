@@ -47,7 +47,13 @@ export class TraceRepository {
         SpanAttributes['wg.operation.variables'] as attrOperationVariables,
         SpanAttributes['wg.engine.persisted_operation_cache_hit'] as attrPersistedOperationCacheHit,
         SpanAttributes['wg.engine.resolver.wait_time_ms'] as attrAcquireResolverWaitTimeMs,
-        SpanAttributes['wg.engine.normalization_cache_hit'] as attrNormalizationCacheHit
+        SpanAttributes['wg.engine.normalization_cache_hit'] as attrNormalizationCacheHit,
+        SpanAttributes['wg.engine.validation_cache_hit'] as attrValidationCacheHit,
+        SpanAttributes['wg.operation.hash'] as attrOperationHash,
+        SpanAttributes['wg.organization.id'] as organizationId,
+        SpanAttributes['wg.router.version'] as attrRouterVersion,
+        SpanAttributes['wg.operation.persisted_id'] as attrOperationPersistedId,
+        SpanAttributes['wg.federated_graph.id'] as attrFederatedGraphId
     FROM ${this.client.database}.otel_traces
     WHERE (TraceId = trace_id) AND (Timestamp >= start) AND (Timestamp <= end) AND SpanAttributes['wg.organization.id'] = '${organizationID}'
     ORDER BY Timestamp ASC
@@ -90,6 +96,12 @@ export class TraceRepository {
         persistedOperationCacheHit: result.attrPersistedOperationCacheHit,
         acquireResolverWaitTimeMs: result.attrAcquireResolverWaitTimeMs,
         normalizationCacheHit: result.attrNormalizationCacheHit,
+        validationCacheHit: result.attrValidationCacheHit,
+        operationHash: result.attrOperationHash,
+        organizationID: result.organizationId,
+        routerVersion: result.attrRouterVersion,
+        operationPersistedID: result.attrOperationPersistedId,
+        federatedGraphID: result.attrFederatedGraphId,
       },
     }));
   }

@@ -1,13 +1,17 @@
 import { UserContext } from "@/components/app-provider";
+import { useCurrentOrganization } from "@/hooks/use-current-organization";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { checkUserAccess, cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format-date";
+import { cn } from "@/lib/utils";
 import { useQuery } from "@connectrpc/connect-query";
 import {
   Component2Icon,
   Cross1Icon,
   EnvelopeClosedIcon,
+  ExclamationTriangleIcon,
 } from "@radix-ui/react-icons";
 import { getBillingPlans } from "@wundergraph/cosmo-connect/dist/platform/v1/platform-PlatformService_connectquery";
+import { addDays } from "date-fns";
 import { useRouter } from "next/router";
 import {
   Dispatch,
@@ -28,6 +32,7 @@ import {
   PiReceipt,
   PiUserGear,
   PiUsers,
+  PiWebhooksLogo
 } from "react-icons/pi";
 import { PageHeader } from "./head";
 import { LayoutProps } from "./layout";
@@ -35,12 +40,14 @@ import { NavLink, SideNav } from "./sidenav";
 import { TitleLayout } from "./title-layout";
 
 export const StarBanner = ({
+  isDisabled,
   setDisableStarBanner,
 }: {
+  isDisabled: boolean;
   setDisableStarBanner: Dispatch<SetStateAction<string>>;
 }) => {
   return (
-    <div className="flex h-8 justify-center">
+    <div className={cn("flex h-8 justify-center", isDisabled && "hidden")}>
       <div className="flex w-screen bg-gradient-to-r from-purple-500 to-pink-400 text-xs lg:justify-center xl:text-sm">
         <a
           href="//github.com/wundergraph/cosmo"
@@ -73,15 +80,45 @@ export const StarBanner = ({
   );
 };
 
+export const OrganizationBanner = () => {
+  const org = useCurrentOrganization();
+
+  if (!org?.deactivation) {
+    return null;
+  }
+
+  return (
+    <div className="flex w-full bg-gradient-to-r from-red-500 to-pink-400 text-xs lg:justify-center xl:text-sm">
+      <p className="flex items-center gap-x-2 px-4 py-1.5">
+        <ExclamationTriangleIcon className="flex-shrink-0" />
+        <span className="flex gap-x-1 font-bold text-gray-950 dark:text-primary-foreground">
+          Your organization is deactivated and is in read-only mode.{" "}
+          {org.deactivation.reason ? `${org.deactivation.reason}.` : ""} It will
+          be permanently deleted on{" "}
+          {formatDateTime(addDays(new Date(org.deactivation.initiatedAt), 30))}
+        </span>
+      </p>
+    </div>
+  );
+};
+
 export const DashboardLayout = ({ children }: LayoutProps) => {
   const router = useRouter();
   const user = useContext(UserContext);
   const organizationSlug = router.query.organizationSlug as string;
-  const [disableStarBanner, setDisableStarBanner] = useLocalStorage(
+
+  const [isStarBannerDisabled, setIsStarBannerDisabled] = useState(true);
+  const [isStarBannerDisabledOnClient, setDisableStarBanner] = useLocalStorage(
     "disableStarBanner",
     "false",
   );
-  const [render, setRender] = useState<string>();
+  useEffect(() => {
+    setIsStarBannerDisabled(isStarBannerDisabledOnClient === "true");
+  }, [isStarBannerDisabledOnClient]);
+
+  const isOrganizationDeactivated = !!user?.currentOrganization.deactivation;
+
+  const isBannerDisplayed = isOrganizationDeactivated || !isStarBannerDisabled;
 
   const plans = useQuery(
     getBillingPlans,
@@ -90,16 +127,6 @@ export const DashboardLayout = ({ children }: LayoutProps) => {
       gcTime: Infinity,
     },
   );
-
-  const isAdmin = checkUserAccess({
-    rolesToBe: ["admin"],
-    userRoles: user?.currentOrganization.roles || [],
-  });
-
-  useEffect(() => {
-    if (!disableStarBanner) return;
-    setRender(disableStarBanner);
-  }, [disableStarBanner]);
 
   const links = useMemo(() => {
     const basePath = `/${user?.currentOrganization.slug || organizationSlug}`;
@@ -141,6 +168,11 @@ export const DashboardLayout = ({ children }: LayoutProps) => {
         title: "Notifications",
         href: basePath + "/webhooks",
         icon: <PiBell className="h-4 w-4" />,
+      },
+      {
+        title: "Webhook History",
+        href: basePath + "/webhook-history",
+        icon: <PiWebhooksLogo className="h-4 w-4"/>,
       },
       {
         title: "Usage",
@@ -196,30 +228,27 @@ export const DashboardLayout = ({ children }: LayoutProps) => {
   ]);
 
   return (
-    render && (
-      <div className="2xl:flex 2xl:flex-1 2xl:flex-col 2xl:items-center">
-        {disableStarBanner !== "true" && (
-          <StarBanner setDisableStarBanner={setDisableStarBanner} />
+    <div className="2xl:flex 2xl:flex-1 2xl:flex-col 2xl:items-center">
+      <StarBanner
+        isDisabled={isStarBannerDisabled && !isOrganizationDeactivated}
+        setDisableStarBanner={setDisableStarBanner}
+      />
+      <OrganizationBanner />
+      <div
+        className={cn(
+          "flex w-full flex-1 flex-col bg-background font-sans antialiased lg:grid lg:grid-cols-[auto_minmax(10px,1fr)] lg:divide-x",
+          {
+            "min-h-[calc(100vh-32px)]": isBannerDisplayed,
+            "min-h-screen": !isBannerDisplayed,
+          },
         )}
-        <div
-          className={cn(
-            "flex w-full flex-1 flex-col bg-background font-sans antialiased lg:grid lg:grid-cols-[auto_minmax(10px,1fr)] lg:divide-x",
-            {
-              "min-h-[calc(100vh-32px)]": disableStarBanner === "false",
-              "min-h-screen": disableStarBanner !== "false",
-            },
-          )}
-        >
-          <SideNav
-            links={links}
-            disableStarBanner={disableStarBanner === "true" ? "true" : "false"}
-          >
-            {children}
-          </SideNav>
-          <main className="flex-1 lg:pt-0">{children}</main>
-        </div>
+      >
+        <SideNav links={links} isBannerDisplayed={isBannerDisplayed}>
+          {children}
+        </SideNav>
+        <main className="flex-1 lg:pt-0">{children}</main>
       </div>
-    )
+    </div>
   );
 };
 

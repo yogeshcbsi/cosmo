@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"regexp"
@@ -15,6 +14,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/alitto/pond"
 	"github.com/buger/jsonparser"
@@ -664,24 +665,46 @@ func (h *WebSocketConnectionHandler) writeErrorMessage(operationID string, err e
 
 func (h *WebSocketConnectionHandler) parseAndPlan(payload []byte) (*ParsedOperation, *operationContext, error) {
 	operationKit, err := h.operationProcessor.NewKit(payload, nil)
-	defer operationKit.Free()
 	if err != nil {
 		return nil, nil, err
 	}
+	defer operationKit.Free()
 
-	if err := operationKit.Parse(h.ctx, h.clientInfo); err != nil {
+	if err := operationKit.UnmarshalOperation(); err != nil {
 		return nil, nil, err
+	}
+
+	var skipParse bool
+
+	if operationKit.parsedOperation.IsPersistedOperation {
+		skipParse, err = operationKit.FetchPersistedOperation(h.ctx, h.clientInfo, baseAttributesFromContext(h.ctx))
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// If the persistent operation is already in the cache, we skip the parse step
+	// because the operation was already parsed. This is a performance optimization, and we
+	// can do it because we know that the persisted operation is immutable (identified by the hash)
+	if !skipParse {
+		if err := operationKit.Parse(); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	if blocked := h.operationBlocker.OperationIsBlocked(operationKit.parsedOperation); blocked != nil {
 		return nil, nil, blocked
 	}
 
-	if _, err := operationKit.Normalize(); err != nil {
+	if _, err := operationKit.NormalizeOperation(); err != nil {
 		return nil, nil, err
 	}
 
-	if err := operationKit.Validate(); err != nil {
+	if err := operationKit.NormalizeVariables(); err != nil {
+		return nil, nil, err
+	}
+
+	if _, err := operationKit.Validate(); err != nil {
 		return nil, nil, err
 	}
 

@@ -18,6 +18,33 @@ type Query {
     ): [BigObject!]!
 
     bigAbstractResponse: BigAbstractResponse
+
+    rootFieldWithListArg(arg: [String!]!): [String!]!
+    rootFieldWithNestedListArg(arg: [[String!]!]!): [[String!]!]!
+    rootFieldWithListOfInputArg(arg: [InputType!]!): [InputResponse!]!
+    rootFieldWithListOfEnumArg(arg: [EnumType!]!): [EnumType!]!
+    rootFieldWithInput(arg: InputArg!): String!
+}
+
+input InputArg {
+    enums: [EnumType!]
+    enum: EnumType
+    string: String
+    strings: [String!]
+}
+
+enum EnumType {
+    A
+    B
+    C
+}
+
+input InputType {
+    arg: String!
+}
+
+type InputResponse {
+    arg: String!
 }
 
 scalar Map

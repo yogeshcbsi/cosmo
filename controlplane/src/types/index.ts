@@ -201,6 +201,10 @@ export interface OrganizationDTO {
     currentPeriodEnd?: string;
     cancelAtPeriodEnd?: boolean;
   };
+  deactivation?: {
+    reason?: string;
+    initiatedAt: string;
+  };
 }
 
 export interface UserDTO {
@@ -507,6 +511,15 @@ export type TimeFilters = {
   granule: string;
   dateRange: DateRange<number>;
 };
+
+export interface MailerParams {
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpRequireTls: boolean;
+  smtpUsername: string;
+  smtpPassword: string;
+}
 
 type LintRuleType = Record<LintRuleEnum, LintRuleEnum>;
 

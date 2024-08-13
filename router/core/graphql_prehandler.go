@@ -211,6 +211,11 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 				return
 			}
 
+			_, readMultiPartSpan := h.tracer.Start(r.Context(), "HTTP - Read Multipart",
+				trace.WithSpanKind(trace.SpanKindInternal),
+				trace.WithAttributes(commonAttributes...),
+			)
+
 			multipartParser := NewMultipartParser(h.operationProcessor, h.maxUploadFiles, h.maxUploadFileSize)
 
 			var err error
@@ -219,14 +224,28 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 				finalErr = err
 				writeOperationError(r, w, requestLogger, finalErr)
 				h.releaseBodyReadBuffer(buf)
+				readMultiPartSpan.End()
 				return
 			}
 
+			readMultiPartSpan.SetAttributes(
+				otel.HTTPRequestUploadFileCount.Int(len(files)),
+			)
+
+			readMultiPartSpan.End()
+
 			// Cleanup all files. Must happen in here, so it is run after response is sent.
 			defer func() {
-				multipartParser.RemoveAll()
+				if err := multipartParser.RemoveAll(); err != nil {
+					requestLogger.Error("failed to remove files after multipart request", zap.Error(err))
+				}
 			}()
 		} else {
+			_, readOperationBodySpan := h.tracer.Start(r.Context(), "HTTP - Read Body",
+				trace.WithSpanKind(trace.SpanKindInternal),
+				trace.WithAttributes(commonAttributes...),
+			)
+
 			var err error
 			body, err = h.operationProcessor.ReadBody(buf, r.Body)
 			if err != nil {
@@ -242,80 +261,120 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 
 				writeOperationError(r, w, requestLogger, err)
 				h.releaseBodyReadBuffer(buf)
+				readOperationBodySpan.End()
 				return
 			}
+
+			readOperationBodySpan.End()
 		}
 
 		/**
-		 * Parse the operation
+		 * Load and Parse the operation. Optionally, we will fetch the persisted operation from the CDN
 		 */
-
-		if !traceOptions.ExcludeParseStats {
-			traceTimings.StartParse()
-		}
-
-		_, engineParseSpan := h.tracer.Start(r.Context(), "Operation - Parse",
-			trace.WithSpanKind(trace.SpanKindInternal),
-			trace.WithAttributes(commonAttributes...),
-			trace.WithAttributes(attributes...),
-		)
 
 		operationKit, err := h.operationProcessor.NewKit(body, files)
 		if err != nil {
 			finalErr = err
 
-			rtrace.AttachErrToSpan(engineParseSpan, err)
 			// Mark the root span of the router as failed, so we can easily identify failed requests
 			rtrace.AttachErrToSpan(routerSpan, err)
-
-			engineParseSpan.End()
 
 			writeOperationError(r, w, requestLogger, err)
 			h.releaseBodyReadBuffer(buf)
 			return
 		}
-		defer func() {
-			if operationKit != nil {
-				// before processing the request with the graphql_handler.go, we're calling Free() already on the operationKit and set the reference to nil
-				// this allows us to use less memory and free the resources as soon as possible
-				// however, we might return early in case of an error, which is why we're using defer here to make sure we're freeing the resources
-				operationKit.Free()
-			}
-		}()
 
-		err = operationKit.Parse(r.Context(), clientInfo)
-		if err != nil {
+		if err := operationKit.UnmarshalOperation(); err != nil {
+			// the kit must be freed before we're doing io operations
+			// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+			operationKit.Free()
+			operationKit = nil
 			finalErr = err
 
-			rtrace.AttachErrToSpan(engineParseSpan, err)
 			// Mark the root span of the router as failed, so we can easily identify failed requests
 			rtrace.AttachErrToSpan(routerSpan, err)
-
-			engineParseSpan.End()
 
 			writeOperationError(r, w, requestLogger, err)
 			h.releaseBodyReadBuffer(buf)
 			return
 		}
 
-		engineParseSpan.End()
+		var skipParse bool
 
-		if !traceOptions.ExcludeParseStats {
-			traceTimings.EndParse()
+		if operationKit.parsedOperation.IsPersistedOperation {
+			skipParse, err = operationKit.FetchPersistedOperation(r.Context(), clientInfo, commonAttributes)
+			if err != nil {
+				// the kit must be freed before we're doing io operations
+				// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+				operationKit.Free()
+				operationKit = nil
+				finalErr = err
+
+				// Mark the root span of the router as failed, so we can easily identify failed requests
+				rtrace.AttachErrToSpan(routerSpan, err)
+
+				writeOperationError(r, w, requestLogger, err)
+				h.releaseBodyReadBuffer(buf)
+				return
+			}
+		}
+
+		// If the persistent operation is already in the cache, we skip the parse step
+		// because the operation was already parsed. This is a performance optimization, and we
+		// can do it because we know that the persisted operation is immutable (identified by the hash)
+		if !skipParse {
+			_, engineParseSpan := h.tracer.Start(r.Context(), "Operation - Parse",
+				trace.WithSpanKind(trace.SpanKindInternal),
+				trace.WithAttributes(commonAttributes...),
+				trace.WithAttributes(attributes...),
+			)
+
+			if !traceOptions.ExcludeParseStats {
+				traceTimings.StartParse()
+			}
+
+			err = operationKit.Parse()
+			if err != nil {
+				// the kit must be freed before we're doing io operations
+				// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+				operationKit.Free()
+				operationKit = nil
+				finalErr = err
+
+				rtrace.AttachErrToSpan(engineParseSpan, err)
+				// Mark the root span of the router as failed, so we can easily identify failed requests
+				rtrace.AttachErrToSpan(routerSpan, err)
+
+				engineParseSpan.End()
+
+				writeOperationError(r, w, requestLogger, err)
+				h.releaseBodyReadBuffer(buf)
+				return
+			}
+
+			if !traceOptions.ExcludeParseStats {
+				traceTimings.EndParse()
+			}
+
+			engineParseSpan.End()
 		}
 
 		h.releaseBodyReadBuffer(buf)
 
+		// Set the router span name after we have the operation name
+		routerSpan.SetName(GetSpanName(operationKit.parsedOperation.Request.OperationName, operationKit.parsedOperation.Type))
+
 		if blockedErr := h.operationBlocker.OperationIsBlocked(operationKit.parsedOperation); blockedErr != nil {
+			// the kit must be freed before we're doing io operations
+			// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+			operationKit.Free()
+			operationKit = nil
 			// Mark the root span of the router as failed, so we can easily identify failed requests
 			rtrace.AttachErrToSpan(routerSpan, blockedErr)
 
 			writeRequestErrors(r, w, http.StatusOK, graphqlerrors.RequestErrorsFromError(blockedErr), requestLogger)
 			return
 		}
-
-		// Set the router span name after we have the operation name
-		routerSpan.SetName(GetSpanName(operationKit.parsedOperation.Request.OperationName, operationKit.parsedOperation.Type))
 
 		attributes = []attribute.KeyValue{
 			otel.WgOperationName.String(operationKit.parsedOperation.Request.OperationName),
@@ -343,8 +402,30 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 			trace.WithAttributes(attributes...),
 		)
 
-		cached, err := operationKit.Normalize()
+		cached, err := operationKit.NormalizeOperation()
 		if err != nil {
+			// the kit must be freed before we're doing io operations
+			// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+			operationKit.Free()
+			operationKit = nil
+			finalErr = err
+
+			rtrace.AttachErrToSpan(engineNormalizeSpan, err)
+			// Mark the root span of the router as failed, so we can easily identify failed requests
+			rtrace.AttachErrToSpan(routerSpan, err)
+
+			engineNormalizeSpan.End()
+
+			writeOperationError(r, w, requestLogger, err)
+			return
+		}
+
+		err = operationKit.NormalizeVariables()
+		if err != nil {
+			// the kit must be freed before we're doing io operations
+			// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+			operationKit.Free()
+			operationKit = nil
 			finalErr = err
 
 			rtrace.AttachErrToSpan(engineNormalizeSpan, err)
@@ -396,8 +477,12 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 			trace.WithSpanKind(trace.SpanKindInternal),
 			trace.WithAttributes(commonAttributes...),
 		)
-		err = operationKit.Validate()
+		validationCached, err := operationKit.Validate()
 		if err != nil {
+			// the kit must be freed before we're doing io operations
+			// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+			operationKit.Free()
+			operationKit = nil
 			finalErr = err
 
 			rtrace.AttachErrToSpan(engineValidateSpan, err)
@@ -410,6 +495,7 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 			return
 		}
 
+		engineValidateSpan.SetAttributes(otel.WgValidationCacheHit.Bool(validationCached))
 		engineValidateSpan.End()
 
 		if !traceOptions.ExcludeValidateStats {
@@ -435,6 +521,10 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 
 		opContext, err := h.planner.Plan(operationKit.parsedOperation, clientInfo, OperationProtocolHTTP, traceOptions)
 		if err != nil {
+			// the kit must be freed before we're doing io operations
+			// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+			operationKit.Free()
+			operationKit = nil
 			finalErr = err
 
 			rtrace.AttachErrToSpan(enginePlanSpan, err)
@@ -465,6 +555,10 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 
 			validatedReq, err := h.accessController.Access(w, r)
 			if err != nil {
+				// the kit must be freed before we're doing io operations
+				// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
+				operationKit.Free()
+				operationKit = nil
 				finalErr = err
 				requestLogger.Error("failed to authenticate request", zap.Error(err))
 
@@ -483,8 +577,8 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 			r = validatedReq
 		}
 
-		// Free the operation kit after we're done with it
-		// We don't need to hold onto it while processing the operation
+		// the kit must be freed before we're doing io operations
+		// the kit is bound to the number of CPUs, and we must not hold onto it while doing IO operations
 		operationKit.Free()
 		operationKit = nil
 
@@ -510,9 +604,8 @@ func (h *PreHandler) Handler(next http.Handler) http.Handler {
 		finalErr = requestContext.error
 
 		// Mark the root span of the router as failed, so we can easily identify failed requests
-		routerSpan = trace.SpanFromContext(newReq.Context())
 		if finalErr != nil {
-			rtrace.AttachErrToSpan(routerSpan, finalErr)
+			rtrace.AttachErrToSpan(trace.SpanFromContext(r.Context()), finalErr)
 		}
 	})
 }
