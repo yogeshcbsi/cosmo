@@ -41,7 +41,7 @@ func (m *AuthModule) OnOriginRequest(req *http.Request, ctx core.RequestContext)
 
 func (m *AuthModule) Provision(ctx *core.ModuleContext) error {
 	if !m.Enabled {
-		ctx.Logger.Warn("AUTH plugin is disabled")
+		ctx.Logger.Warn("AUTH custom module is disabled")
 		return nil
 	}
 
@@ -65,6 +65,13 @@ func (m *AuthModule) Middleware(ctx core.RequestContext, next http.Handler) {
 	authorizer, err := findAuthorizer(ctx)
 	if err != nil {
 		ctx.Logger().Warn(fmt.Sprintf("error when trying to get request authorizer: %v", err))
+		next.ServeHTTP(ctx.ResponseWriter(), ctx.Request())
+		return
+	}
+	if authorizer == nil {
+		ctx.Logger().Debug("No authorizer found in request")
+		next.ServeHTTP(ctx.ResponseWriter(), ctx.Request())
+		return
 	}
 
 	userLogin, err := authorizer.userLogin()
@@ -83,7 +90,6 @@ func (m *AuthModule) Middleware(ctx core.RequestContext, next http.Handler) {
 
 	if !isUserCached {
 		sapiUserValue, err := m.sapi.userDetails(ctx.Request().Context(), userLogin)
-
 		if err != nil {
 			ctx.Logger().Warn(fmt.Sprintf("error when requesting sapi user details: %v", err))
 			next.ServeHTTP(ctx.ResponseWriter(), ctx.Request())

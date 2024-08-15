@@ -282,6 +282,5 @@ func findAuthorizer(ctx core.RequestContext) (authorizer, error) {
 	}
 
 	// At this point we could not find any auth information in the http request
-	ctx.Logger().Debug("No authorizer found in request")
 	return nil, nil
 }
