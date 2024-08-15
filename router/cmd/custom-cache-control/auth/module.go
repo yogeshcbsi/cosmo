@@ -45,8 +45,18 @@ func (m *AuthModule) Provision(ctx *core.ModuleContext) error {
 		return nil
 	}
 
-	m.sapi = newSapi(ctx.Logger)
-	m.cache = newCache(ctx.Logger)
+	sapi, err := newSapi(ctx.Logger)
+	if err != nil {
+		return fmt.Errorf("could not connect to SAPI: %v", err)
+	}
+	m.sapi = sapi
+
+	cache, err := newCache(ctx.Logger)
+	if err != nil {
+		return fmt.Errorf("could not connect to Redis: %v", err)
+	}
+	m.cache = cache
+
 	store, err := newStore(ctx.Logger)
 	if err != nil {
 		return fmt.Errorf("could not connect to database: %v", err)

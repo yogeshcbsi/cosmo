@@ -30,22 +30,27 @@ type sapiUser struct {
 	EncryptedPid string `json:"encryptedPid"`
 }
 
-func newSapi(logger *zap.Logger) *sapi {
+func newSapi(logger *zap.Logger) (*sapi, error) {
 	baseUrl, authKey := "https://sapi-qa.cbssports.com", ""
 
 	if value, exists := os.LookupEnv("SAPI_URL"); exists {
 		baseUrl = value
+	} else {
+		return nil, fmt.Errorf("SAPI_URL env variable not found")
 	}
 
 	if value, exists := os.LookupEnv("SAPI_AUTH_KEY"); exists {
 		authKey = value
+	} else {
+		return nil, fmt.Errorf("SAPI_AUTH_KEY env variable not found")
+
 	}
 
 	return &sapi{
 		baseUrl: baseUrl,
 		authKey: authKey,
 		logger:  logger,
-	}
+	}, nil
 }
 
 func (s sapi) userDetails(ctx context.Context, userLogin string) (*sapiUser, error) {

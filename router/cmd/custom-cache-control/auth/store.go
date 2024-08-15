@@ -37,24 +37,36 @@ func newStore(logger *zap.Logger) (*store, error) {
 
 	if value, exists := os.LookupEnv("DB_HOST"); exists {
 		dbHost = value
+	} else {
+		return nil, fmt.Errorf("DB_HOST env variable not found")
 	}
 
 	if value, exists := os.LookupEnv("DB_PORT"); exists {
 		if intValue, err := strconv.Atoi(value); err == nil {
 			dbPort = intValue
 		}
+	} else {
+		return nil, fmt.Errorf("DB_PORT env variable not found")
 	}
 
 	if value, exists := os.LookupEnv("DB_USER"); exists {
 		dbUser = value
+	} else {
+		return nil, fmt.Errorf("DB_USER env variable not found")
+
 	}
 
 	if value, exists := os.LookupEnv("DB_PASSWORD"); exists {
 		dbPassword = value
+	} else {
+		return nil, fmt.Errorf("DB_PASSWORD env variable not found")
 	}
 
 	if value, exists := os.LookupEnv("DB_DATABASE"); exists {
 		dbDatabase = value
+	} else {
+		return nil, fmt.Errorf("DB_DATABASE env variable not found")
+
 	}
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", dbUser, dbPassword, dbHost, dbPort, dbDatabase)

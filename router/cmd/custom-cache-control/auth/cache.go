@@ -33,33 +33,41 @@ type cachedUser struct {
 	AvatarUrl          string           `json:"avatarUrl"`
 }
 
-func newCache(logger *zap.Logger) *cache {
+func newCache(logger *zap.Logger) (*cache, error) {
 	redisClusterHost, redisClusterPort, redisUsesCluster := "localhost", 6379, false
 
 	if value, exists := os.LookupEnv("USER_REDIS_CLUSTER_HOST"); exists {
 		redisClusterHost = value
+	} else {
+		return nil, fmt.Errorf("USER_REDIS_CLUSTER_HOST env variable no found")
 	}
 
 	if value, exists := os.LookupEnv("USER_REDIS_CLUSTER_PORT"); exists {
 		if port, err := strconv.Atoi(value); err == nil {
 			redisClusterPort = port
 		}
+	} else {
+		return nil, fmt.Errorf("USER_REDIS_CLUSTER_PORT env variable no found")
+
 	}
 
 	if value, exists := os.LookupEnv("USER_REDIS_USES_CLUSTER"); exists {
 		redisUsesCluster = strings.EqualFold(value, "true")
+	} else {
+		return nil, fmt.Errorf("USER_REDIS_USES_CLUSTER env variable no found")
+
 	}
 
 	addr := fmt.Sprintf("%s:%d", redisClusterHost, redisClusterPort)
 	if redisUsesCluster {
 		return &cache{redis.NewClusterClient(&redis.ClusterOptions{
 			Addrs: []string{addr},
-		}), logger}
+		}), logger}, nil
 	}
 
 	return &cache{redis.NewClient(&redis.Options{
 		Addr: addr,
-	}), logger}
+	}), logger}, nil
 }
 
 func (c cache) userKey(userLogin string) string {
