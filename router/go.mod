@@ -32,7 +32,7 @@ require (
 	github.com/nats-io/nuid v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
-	github.com/redis/go-redis/v9 v9.4.0
+	github.com/redis/go-redis/v9 v9.6.1
 	github.com/sebdah/goldie/v2 v2.5.3
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/stretchr/testify v1.9.0
@@ -68,6 +68,8 @@ require (
 	github.com/KimMachineGun/automemlimit v0.6.1
 	github.com/caarlos0/env/v11 v11.1.0
 	github.com/fsnotify/fsnotify v1.7.0
+	github.com/go-sql-driver/mysql v1.8.1
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/klauspost/compress v1.17.9
 	github.com/minio/minio-go/v7 v7.0.74
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
@@ -75,6 +77,8 @@ require (
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
 	golang.org/x/text v0.16.0
 )
+
+require filippo.io/edwards25519 v1.1.0 // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
