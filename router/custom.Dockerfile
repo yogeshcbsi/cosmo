@@ -1,4 +1,5 @@
-FROM golang:1.21 as builder
+FROM segment/chamber:2.12.0 AS chamber
+FROM golang:1.21 AS builder
 
 WORKDIR /app/
 
@@ -15,10 +16,11 @@ COPY . .
 RUN go test -v ./...
 
 # Build router
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -a -o router cmd/custom-cache-control/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -a -o router cmd/cbs-sports/main.go
 
 FROM gcr.io/distroless/static:latest
 
+COPY --from=chamber /chamber /bin/chamber
 COPY --from=builder /app/router /router
 
 ENTRYPOINT ["/router"]
