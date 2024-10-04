@@ -16,7 +16,7 @@ COPY . .
 RUN go test -v ./...
 
 # Build router
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -a -o router cmd/cbs-sports/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-extldflags -static -X github.com/wundergraph/cosmo/router/core.Version=${VERSION}" -a -o router cmd/cbs-sports/main.go
 
 FROM gcr.io/distroless/static:latest
 
